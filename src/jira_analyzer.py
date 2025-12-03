@@ -1,3 +1,4 @@
+import time
 import requests
 import pandas as pd
 import plotly.express as px
@@ -60,6 +61,7 @@ class JiraAnalyzer:
         """Pulls all issue descriptions from the Jira project using JQL and pagination."""
         url = f"https://{JIRA_DOMAIN}/rest/api/3/search/jql"
         headers = self._authenticate()
+        num_tries = 25
 
         issues: List[str] = []
         start_at = 0
@@ -73,19 +75,24 @@ class JiraAnalyzer:
                 "maxResults": FETCHER_BATCH_SIZE,
                 "fields": ["description"]
             }
-
-            try:
-                response = requests.get(url, headers=headers, params=query, timeout=15)
-                response.raise_for_status()
-                data = response.json()
-            except requests.exceptions.RequestException as e:
-                # Print the exact response body if available for easier debugging
-                print(f"❌ API Error during fetch: {e}")
+            for i in range(num_tries):
                 try:
-                    print(f"Response body: {response.text if 'response' in locals() else 'N/A'}")
-                except:
-                    pass
-                return False
+                    response = requests.get(url, headers=headers, params=query, timeout=15)
+                    if response.status_code == 429:
+                        print('Rate limit exceeded, sleeping a bit')
+                        time.sleep(1)
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except requests.exceptions.RequestException as e:
+                    # Print the exact response body if available for easier debugging
+                    print(f"❌ API Error during fetch: {e}")
+                    try:
+                        print(f"Response body: {response.text if 'response' in locals() else 'N/A'}")
+                    except:
+                        pass
+                    if i == num_tries - 1:
+                        return False
 
             if "issues" not in data or len(data["issues"]) == 0:
                 break
