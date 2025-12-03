@@ -1,6 +1,12 @@
-JIRA_DOMAIN = "alonberkman.atlassian.net"
-EMAIL = "alonberkman2004@gmail.com"
-API_TOKEN = "ATATT3xFfGF0yNksf0_IzSN18WXzQFXsNM6KTHJOAc2EB1vCcjm01GN9XOF-CrIio12nJGTvPL98To85QmNN8FaHJmcxDHWZ9K5Ht7t7Fsac6fgm3-knexiOT47-FcPGEpHREkeB3RDlCY5BXC9_kuiAVPOx_yW0KhlGCjr5vIKqlZISn2u1XLk=1DD0F0EA"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+JIRA_DOMAIN = os.environ.get("JIRA_DOMAIN")
+EMAIL = os.environ.get("EMAIL")
+API_TOKEN = os.environ.get("API_TOKEN")
+
 PROJECT_KEY = "TONICDEV"
 TOTAL_ISSUES_NUM = 20000
 POPULATOR_BATCH_SIZE = 50
