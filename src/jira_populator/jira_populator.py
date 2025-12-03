@@ -2,7 +2,7 @@ import requests
 import time
 from base64 import b64encode
 
-from .consts import *
+from ..consts import *
 from .utils import create_issue_payload
 
 

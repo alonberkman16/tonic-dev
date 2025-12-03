@@ -1,6 +1,6 @@
 import random
 
-from .consts import TECHNOLOGY_TEMPLATES, PROJECT_KEY
+from ..consts import TECHNOLOGY_TEMPLATES, PROJECT_KEY
 
 
 def generate_server_name():
