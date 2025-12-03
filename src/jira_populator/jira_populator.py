@@ -26,13 +26,13 @@ def main_populate():
     for i in range(TOTAL_ISSUES_NUM):
         issues_buffer.append(create_issue_payload())
 
-        if len(issues_buffer) == BATCH_SIZE:
+        if len(issues_buffer) == POPULATOR_BATCH_SIZE:
             payload = {"issueUpdates": issues_buffer}
 
             try:
                 response = requests.post(url, headers=headers, json=payload)
                 if response.status_code == 201:
-                    print(f"Batch {i // BATCH_SIZE + 1} successful ({i + 1}/{TOTAL_ISSUES_NUM})")
+                    print(f"Batch {i // POPULATOR_BATCH_SIZE + 1} successful ({i + 1}/{TOTAL_ISSUES_NUM})")
                 else:
                     print(f"Error: {response.status_code} - {response.text}")
 
