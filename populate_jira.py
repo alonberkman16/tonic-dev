@@ -1,5 +1,5 @@
-from src import main_populate
-
+from src import JiraPopulator
 
 if __name__ == '__main__':
-    main_populate()
+    populator = JiraPopulator()
+    populator.populate()

@@ -1,6 +1,3 @@
-import time
-import requests
-from requests.auth import HTTPBasicAuth
 import pandas as pd
 import plotly.express as px
 import random
@@ -10,6 +7,7 @@ from sklearn.pipeline import Pipeline
 from typing import List
 
 from .consts import *
+from .utils import get_jira_api_auth, run_request_with_error_handling
 
 
 class JiraAnalyzer:
@@ -51,11 +49,7 @@ class JiraAnalyzer:
         """Pulls all issue descriptions from the Jira project using JQL and pagination."""
         # Set up login and query variables
         url = f"https://{JIRA_DOMAIN}/rest/api/3/search/jql"
-        auth = HTTPBasicAuth(EMAIL, API_TOKEN)
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
+        auth = get_jira_api_auth(EMAIL, API_TOKEN)
         params = {
             "jql": f"project = {PROJECT_KEY} ORDER BY created ASC",
             "maxResults": FETCHER_BATCH_SIZE,
@@ -65,38 +59,14 @@ class JiraAnalyzer:
         issues: List[str] = []
         is_last = False
         next_token = None
-        num_tries_if_error = 25
 
         print(f"🔄 Fetching issues for project: {PROJECT_KEY}...")
         while not is_last:
             if next_token:
                 params["nextPageToken"] = next_token
 
-            for i in range(num_tries_if_error):
-                try:
-                    response = requests.get(url, headers=headers, params=params, timeout=15, auth=auth)
-                    if response.status_code == 429:
-                        retry_time = response.headers.get("Retry-After")
-                        if retry_time:
-                            print(f"Rate limit exceeded. Sleeping {retry_time} seconds")
-                            time.sleep(int(retry_time))
-                        else:
-                            print("Rate limit exceeded")
-                    response.raise_for_status()
-                    data = response.json()
-                    break
-                except requests.exceptions.RequestException as e:
-                    # Print the exact response body if available for easier debugging
-                    print(f"❌ API Error during fetch: {e}")
-                    try:
-                        print(f"Response body: {response.text if 'response' in locals() else 'N/A'}")
-                    except Exception as e:
-                        pass
-                    if i == num_tries_if_error - 1:
-                        print(f"API failed too many times in a row ({num_tries_if_error})")
-                        return False
-
-            if not data.get("issues"):
+            data = run_request_with_error_handling(method='GET', url=url, headers=JIRA_API_HEADERS, params=params, auth=auth)
+            if not data.get("issues"):  # If there is a problem with the data the API has returned
                 break
 
             for issue in data.get("issues", []):
@@ -134,7 +104,6 @@ class JiraAnalyzer:
 
     def _classify_technology(self) -> None:
         """Applies the trained ML model to classify the technology."""
-        # Use the classifier model's predict method
         self.dataframe['technology'] = self.classifier_model.predict(self.dataframe['description'])
         print("✅ Technology classification complete.")
 

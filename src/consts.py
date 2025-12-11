@@ -9,8 +9,12 @@ API_TOKEN = os.environ.get("API_TOKEN")
 
 PROJECT_KEY = "TONICDEV"
 TOTAL_ISSUES_NUM = 20000
-POPULATOR_BATCH_SIZE = 50
+POPULATOR_BATCH_SIZE = 50  # The maximum amount that can be created per one request (by Jira)
 FETCHER_BATCH_SIZE = 10
+JIRA_API_HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+}
 
 SERVER_REGEX = r'(?i)\b(srv-?[\w\d]+)\b'
 
