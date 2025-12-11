@@ -1,13 +1,13 @@
 import time
 import requests
+from requests.auth import HTTPBasicAuth
 import pandas as pd
 import plotly.express as px
 import random
-from base64 import b64encode
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
-from typing import List, Dict
+from typing import List
 
 from .consts import *
 
@@ -22,16 +22,6 @@ class JiraAnalyzer:
         """Initializes the analyzer with constants and trains the ML model."""
         self.dataframe: pd.DataFrame = pd.DataFrame()
         self.classifier_model = self._train_classifier()
-
-    @staticmethod
-    def _authenticate() -> Dict[str, str]:
-        """Creates the necessary HTTP headers for Jira API calls."""
-        auth_str = f"{EMAIL}:{API_TOKEN}"
-        encoded_auth = b64encode(auth_str.encode()).decode()
-        return {
-            "Authorization": f"Basic {encoded_auth}",
-            "Accept": "application/json"
-        }
 
     @staticmethod
     def _train_classifier() -> Pipeline:
@@ -59,28 +49,39 @@ class JiraAnalyzer:
 
     def _fetch_data(self) -> bool:
         """Pulls all issue descriptions from the Jira project using JQL and pagination."""
+        # Set up login and query variables
         url = f"https://{JIRA_DOMAIN}/rest/api/3/search/jql"
-        headers = self._authenticate()
-        num_tries = 25
+        auth = HTTPBasicAuth(EMAIL, API_TOKEN)
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        params = {
+            "jql": f"project = {PROJECT_KEY} ORDER BY created ASC",
+            "maxResults": FETCHER_BATCH_SIZE,
+            "fields": ["description"]
+        }
 
         issues: List[str] = []
-        start_at = 0
+        is_last = False
+        next_token = None
+        num_tries_if_error = 25
 
         print(f"🔄 Fetching issues for project: {PROJECT_KEY}...")
+        while not is_last:
+            if next_token:
+                params["nextPageToken"] = next_token
 
-        while start_at < TOTAL_ISSUES_NUM:
-            query = {
-                "jql": f"project = {PROJECT_KEY}",
-                "startAt": start_at,
-                "maxResults": FETCHER_BATCH_SIZE,
-                "fields": ["description"]
-            }
-            for i in range(num_tries):
+            for i in range(num_tries_if_error):
                 try:
-                    response = requests.get(url, headers=headers, params=query, timeout=15)
+                    response = requests.get(url, headers=headers, params=params, timeout=15, auth=auth)
                     if response.status_code == 429:
-                        print('Rate limit exceeded, sleeping a bit')
-                        time.sleep(1)
+                        retry_time = response.headers.get("Retry-After")
+                        if retry_time:
+                            print(f"Rate limit exceeded. Sleeping {retry_time} seconds")
+                            time.sleep(int(retry_time))
+                        else:
+                            print("Rate limit exceeded")
                     response.raise_for_status()
                     data = response.json()
                     break
@@ -89,24 +90,27 @@ class JiraAnalyzer:
                     print(f"❌ API Error during fetch: {e}")
                     try:
                         print(f"Response body: {response.text if 'response' in locals() else 'N/A'}")
-                    except:
+                    except Exception as e:
                         pass
-                    if i == num_tries - 1:
+                    if i == num_tries_if_error - 1:
+                        print(f"API failed too many times in a row ({num_tries_if_error})")
                         return False
 
-            if "issues" not in data or len(data["issues"]) == 0:
+            if not data.get("issues"):
                 break
 
-            for issue in data["issues"]:
-                desc_text = ""
-                try:
-                    desc_text = issue['fields']['description']['content'][0]['content'][0]['text']
-                except (KeyError, TypeError, IndexError):
-                    desc_text = ""
-
+            for issue in data.get("issues", []):
+                desc_text = (
+                    issue.get("fields", {})
+                         .get("description", {})
+                         .get("content", [{}])[0]
+                         .get("content", [{}])[0]
+                         .get("text", "")
+                )
                 issues.append(desc_text)
 
-            start_at += FETCHER_BATCH_SIZE
+            next_token = data.get("nextPageToken")
+            is_last = data['isLast']
             print(f"Fetched {len(issues)} issues...", end="\r")
 
         num_issues_fetched = len(issues)
@@ -139,14 +143,14 @@ class JiraAnalyzer:
         df = self.dataframe
 
         # --- PLOT 1: Top Problematic Servers ---
-        server_counts = df[df['server'] != 'unidentified']['server'].value_counts().head(50).reset_index()
+        server_counts = df[df['server'] != 'unidentified']['server'].value_counts().head(20).reset_index()
         server_counts.columns = ['Server', 'Ticket Count']  # Rename columns for clarity
 
         fig_server = px.bar(
             server_counts,
             x='Server',
             y='Ticket Count',
-            title='Top 10 Servers by Ticket Volume (Excluding Unidentified)',
+            title='Top 20 Servers by Ticket Volume (Excluding Unidentified)',
             template="plotly_white"
         )
 
