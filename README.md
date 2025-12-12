@@ -9,7 +9,7 @@ This project is a Data Engineering solution designed to interact with the Atlass
 
 ## 🚀 Key Features
 
-* **Bulk Data Generation:** Utilizes Jira's Bulk API to generate thousands of issues efficiently while respecting rate limits.
+* **Bulk Data Generation:** Utilizes Jira's Bulk API and multi-threading to generate thousands of issues efficiently while respecting rate limits.
 * **Robust Data Extraction:** Implements **Token-Based Pagination** (Cursor-based) to reliably fetch large datasets (20k+ records) from the modern Jira Cloud API.
 * **Hybrid Analysis Engine:**
     * **Regex Pattern Matching:** Identifies server names (e.g., `srv-01`, `SRV-db`) handling mixed casing and missing separators.
@@ -25,6 +25,7 @@ This project is a Data Engineering solution designed to interact with the Atlass
 * **Visualization:** Plotly Express
 * **API Interaction:** Requests (REST)
 * **Security:** Python-dotenv
+* **Multi-Threading:** concurrent futures
 
 ***
 
