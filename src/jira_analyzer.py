@@ -115,37 +115,23 @@ class JiraAnalyzer:
         server_counts = df[df['server'] != 'unidentified']['server'].value_counts().head(20).reset_index()
         server_counts.columns = ['Server', 'Ticket Count']  # Rename columns for clarity
 
-        fig_server = px.bar(
-            server_counts,
-            x='Server',
-            y='Ticket Count',
-            title='Top 20 Servers by Ticket Volume (Excluding Unidentified)',
-            template="plotly_white"
-        )
+        fig_server = px.bar(server_counts, x='Server', y='Ticket Count',
+                            title='Top 20 Servers by Ticket Volume (Excluding Unidentified)', template="plotly_white")
 
         # --- PLOT 2: Tickets by Technology Category ---
         tech_counts = df['technology'].value_counts().reset_index()
         tech_counts.columns = ['Technology', 'Ticket Count']
 
-        fig_tech = px.bar(
-            tech_counts,
-            x='Technology',
-            y='Ticket Count',
-            title='Ticket Distribution by Technology',
-            template="plotly_white"
-        )
+        fig_tech = px.bar(tech_counts, x='Technology', y='Ticket Count', title='Ticket Distribution by Technology',
+                          template="plotly_white")
 
         print("\n📊 Displaying Interactive Plotly Visualizations...")
         fig_server.show()
         fig_tech.show()
 
     def run_analysis(self) -> None:
-        """
-        The main method to run the entire analysis pipeline in sequence.
-        """
-        print("-" * 40)
-        print(f"JIRA ANALYSIS PIPELINE STARTING")
-        print("-" * 40)
+        """The main method to run the entire analysis pipeline in sequence."""
+        print(f"{'-' * 40}\nJIRA ANALYSIS PIPELINE STARTING\n{'-' * 40}")
 
         fetch_status = self._fetch_data()
         if not fetch_status:
