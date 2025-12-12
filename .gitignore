@@ -2,3 +2,4 @@
 .env
 __pycache__/
 tests/
+jira_issues_cache.json

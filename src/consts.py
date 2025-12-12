@@ -55,3 +55,6 @@ TECHNOLOGY_TEMPLATES = {
         "Backup volume on {server} out of space"
     ]
 }
+
+# Define the path for the checkpoint file
+CACHE_FILE_PATH = "jira_issues_cache.json"

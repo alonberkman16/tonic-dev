@@ -4,7 +4,7 @@ import random
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
-from typing import List
+import json
 
 from .consts import *
 from .utils import get_jira_api_auth, run_request_with_error_handling
@@ -45,6 +45,30 @@ class JiraAnalyzer:
         text_clf.fit(training_data, training_labels)
         return text_clf
 
+    @staticmethod
+    def _save_checkpoint(issues: list, next_token: str or None) -> None:
+        """Saves the current issues list and the next token to the cache file."""
+        checkpoint_data = {
+            "issues": issues,
+            "nextPageToken": next_token
+        }
+        with open(CACHE_FILE_PATH, "w") as f:
+            json.dump(checkpoint_data, f)
+
+    @staticmethod
+    def _load_checkpoint() -> tuple[list, str or None]:
+        """Loads partial issues and the next token from the cache file, if it exists."""
+        if os.path.exists(CACHE_FILE_PATH):
+            with open(CACHE_FILE_PATH, "r") as f:
+                data = json.load(f)
+
+            # Check if the loaded data is in the expected format (list of dicts)
+            issues_loaded = data.get("issues")
+            if issues_loaded and isinstance(issues_loaded, list):
+                return issues_loaded, data.get("nextPageToken")
+        else:
+            return [], None
+
     def _fetch_data(self) -> bool:
         """Pulls all issue descriptions from the Jira project using JQL and pagination."""
         # Set up login and query variables
@@ -56,14 +80,16 @@ class JiraAnalyzer:
             "fields": ["description"]
         }
 
-        issues: List[str] = []
+        issues, next_page_token = self._load_checkpoint()
         is_last = False
-        next_token = None
 
-        print(f"🔄 Fetching issues for project: {PROJECT_KEY}...")
+        if issues:
+            print(f"Resumed fetch with {len(issues)} issues already retrieved.")
+        else:
+            print(f"🔄 Starting new fetch for project: {PROJECT_KEY}...")
         while not is_last:
-            if next_token:
-                params["nextPageToken"] = next_token
+            if next_page_token:
+                params["nextPageToken"] = next_page_token
 
             data = run_request_with_error_handling(method='GET', url=url, headers=JIRA_API_HEADERS, params=params, auth=auth)
             if not data.get("issues"):  # If there is a problem with the data the API has returned
@@ -79,7 +105,11 @@ class JiraAnalyzer:
                 )
                 issues.append(desc_text)
 
-            next_token = data.get("nextPageToken")
+            next_page_token = data.get("nextPageToken")
+
+            # Save progress after every successful batch
+            self._save_checkpoint(issues, next_page_token)
+
             is_last = data['isLast']
             print(f"Fetched {len(issues)} issues...", end="\r")
 
