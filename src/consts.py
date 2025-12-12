@@ -1,13 +1,13 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # Get all the env variables
 
 JIRA_DOMAIN = os.environ.get("JIRA_DOMAIN")
 EMAIL = os.environ.get("EMAIL")
 API_TOKEN = os.environ.get("API_TOKEN")
+PROJECT_KEY = os.environ.get("PROJECT_KEY")
 
-PROJECT_KEY = "TONICDEV"
 TOTAL_ISSUES_NUM = 20000
 POPULATOR_BATCH_SIZE = 50  # The maximum amount that can be created per one request (by Jira)
 FETCHER_BATCH_SIZE = 10
