@@ -44,8 +44,12 @@ class JiraFetcher:
             "fields": ["description"]
         }
 
-        issues, next_page_token = self._load_checkpoint()
         is_last = False
+        issues, next_page_token = self._load_checkpoint()
+
+        if issues and next_page_token is None and os.path.exists(CACHE_FILE_PATH):
+            print(f"✅ Data fetch already completed according to checkpoint. Total issues fetched: {len(issues)}")
+            return pd.DataFrame({"description": issues})
 
         if issues:
             print(f"Resumed fetch with {len(issues)} issues already retrieved.")
