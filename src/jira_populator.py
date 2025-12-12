@@ -1,4 +1,5 @@
 import random
+import concurrent.futures
 
 from .consts import *
 from .utils import get_jira_api_auth, run_request_with_error_handling
@@ -58,22 +59,18 @@ class JiraPopulator:
             }
         }
 
-    def populate(self):
+    def populate(self, max_parallel_api_calls: int = 3):
         """Sends post requests to the jira API in chunks & in a loop to avoid overload on the api"""
         url = f"https://{JIRA_DOMAIN}/rest/api/3/issue/bulk"
         auth = get_jira_api_auth(EMAIL, API_TOKEN)
 
         print(f"Starting generation of {self.total_issues_num} issues...")
 
-        issues_buffer = []
+        all_issues_lst = [self._create_issue_payload() for i in range(self.total_issues_num)]
+        payload_chunks_lst = [{"issueUpdates": all_issues_lst[i:i + POPULATOR_BATCH_SIZE]} for i in range(0, len(all_issues_lst), POPULATOR_BATCH_SIZE)]
 
-        for i in range(self.total_issues_num):
-            issues_buffer.append(self._create_issue_payload())
-
-            if len(issues_buffer) == POPULATOR_BATCH_SIZE:
-                payload = {"issueUpdates": issues_buffer}
-
-                run_request_with_error_handling(method='POST', url=url, headers=JIRA_API_HEADERS, params=payload, auth=auth, timeout_secs=60)
-                print(f"Batch {i // POPULATOR_BATCH_SIZE + 1} successful ({i + 1}/{self.total_issues_num})")
-
-                issues_buffer = []  # Clear buffer
+        # Execute the payload chunks with multithreading. There is no need to collect the results.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_parallel_api_calls) as executor:
+            for payload_chunk in payload_chunks_lst:
+                executor.submit(run_request_with_error_handling, method='POST', url=url, headers=JIRA_API_HEADERS,
+                                params=payload_chunk, auth=auth, timeout_secs=60)
